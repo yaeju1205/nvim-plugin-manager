@@ -103,7 +103,7 @@ function plugin_manager.install(origin, options)
             system(command, { text = true }, function(obj)
                 if obj.code ~= 0 then
                     local err_msg = (obj.stderr ~= "" and obj.stderr) or "Unknown error"
-                    return notify("git error: " .. obj.code .. "):\n" .. err_msg, log.levels.ERROR)
+                    return notify("Install git clone error: " .. obj.code .. "):\n" .. err_msg, log.levels.ERROR)
                 end
                 plugin_manager.load(spec)
                 callback(spec)
@@ -113,7 +113,7 @@ function plugin_manager.install(origin, options)
                 local output = fn.system(table.concat(command))
                 ---@diagnostic disable-next-line
                 if vim.v.shell_error ~= 0 then
-                    return notify("faild install\n" .. output, log.levels.ERROR)
+                    return notify("Faild install\n" .. output, log.levels.ERROR)
                 end
                 plugin_manager.load(spec)
                 callback(spec)
@@ -132,15 +132,15 @@ function plugin_manager.install_user_plugin(name, drive)
             name = name,
             drive = drive,
         }
-        local success, message = pcall(function() plugin_manager.load(spec) end)
-        if not success then
-            notify(message, log.levels.ERROR)
-        end
+        plugin_manager.load(spec)
     else
         notify("Unknown user plugin drive: " .. drive, log.levels.WARN)
     end
     return function(callback)
-        callback(spec)
+        local success, message = pcall(callback)
+        if not success then
+            notify(message, log.levels.ERROR)
+        end
     end
 end
 
@@ -156,7 +156,7 @@ function plugin_manager.upgrade(plugin)
             system(command, { cwd = spec.drive, text = true }, function(obj)
                 if obj.code ~= 0 then
                     local err_msg = (obj.stderr ~= "" and obj.stderr) or "Unknown error"
-                    return notify("git pull error: " .. obj.code .. "):\n" .. err_msg, log.levels.ERROR)
+                    return notify("Upgrade git pull error: " .. obj.code .. "):\n" .. err_msg, log.levels.ERROR)
                 end
             end)
         else
@@ -167,7 +167,7 @@ function plugin_manager.upgrade(plugin)
             fn.chdir(old_cwd)
             ---@diagnostic disable-next-line
             if vim.v.shell_error ~= 0 then
-                return notify("faild upgrade\n" .. output, log.levels.ERROR)
+                return notify("Faild upgrade\n" .. output, log.levels.ERROR)
             end
         end
     else
