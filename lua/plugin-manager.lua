@@ -1,0 +1,169 @@
+--- @diagnostic disable
+local fn = vim.fn
+local opt = vim.opt
+local env = vim.env
+local schedule = vim.schedule
+local system = vim.system
+local log = vim.log
+local notify = vim.notify
+local tbl_extend = vim.tbl_extend
+--- @diagnostic enable
+
+--- @class PluginManager
+--- @field plugins_directory string
+local plugin_manager = {}
+plugin_manager.plugins_directory = fn.expand(fn.stdpath("data") .. "/nvim-plugins")
+plugin_manager.username = env.USER or env.LOGNAME or env.USERNAME or "unknown"
+
+--- @type { [string]: PluginManager.PluginSpec }
+local plugin_specs = {}
+
+--- @class PluginManager.PluginSpec
+--- @field origin? string
+--- @field name string
+--- @field drive string
+--- @field version? string
+--- @field branch? string
+
+--- @class PluginManager.InstallOptions
+--- @field name? string
+--- @field version? string
+--- @field branch? string
+
+--- @param origin string
+--- @return string, string
+local function get_git_origin_info(origin)
+    origin = origin:gsub("^%w+://", ""):gsub("^git@", "")
+    origin = origin:gsub(":", "/")
+    origin = origin:gsub("%.git$", "")
+
+    local slash_parts = {}
+    for part in origin:gmatch("[^/]+") do
+        table.insert(slash_parts, part)
+    end
+    local count = #slash_parts
+    local owner = slash_parts[count - 1]
+    local repo = slash_parts[count]
+    return owner, repo
+end
+
+--- @param origin string
+--- @param options PluginManager.InstallOptions
+--- @return string[], PluginManager.PluginSpec
+local function get_git_origin_install_command_and_info(origin, options)
+    local owner, name = get_git_origin_info(origin)
+    local drive = fn.expand(plugin_manager.plugins_directory .. "/" .. owner .. "/" .. name)
+    local command = { "git", "clone", "--filter=blob:none", "--depth=1" }
+    if options.version then
+        command[5] = "--branch"
+        command[6] = options.version
+        command[7] = "--single-branch"
+        command[8] = origin
+        command[9] = drive
+    elseif options.branch then
+        command[5] = "--branch"
+        command[6] = options.branch
+        command[7] = origin
+        command[8] = drive
+    end
+    return command, tbl_extend("force", {
+        name = name,
+        drive = drive,
+        origin = origin
+    }, options)
+end
+
+--- @param spec PluginManager.PluginSpec
+function plugin_manager.load(spec)
+    plugin_specs[spec.name] = spec
+    opt.rtp:append(spec.drive)
+end
+
+--- @param origin string
+--- @param options? PluginManager.InstallOptions
+--- @return fun (callback: fun(spec: PluginManager.PluginSpec))
+function plugin_manager.install(origin, options)
+    local command, spec = get_git_origin_install_command_and_info(origin, options or {})
+    return function(callback)
+        if system then
+            system(command, { text = true }, function(obj)
+                if obj.code ~= 0 then
+                    local err_msg = (obj.stderr ~= "" and obj.stderr) or "Unknown error"
+                    return notify("git error: " .. obj.code .. "):\n" .. err_msg, log.levels.ERROR)
+                end
+                plugin_manager.load(spec)
+                callback(spec)
+            end)
+        else
+            schedule(function()
+                local output = fn.system(table.concat(command))
+                ---@diagnostic disable-next-line
+                if vim.v.shell_error ~= 0 then
+                    return notify("faild install\n" .. output, log.levels.ERROR)
+                end
+                plugin_manager.load(spec)
+                callback(spec)
+            end)
+        end
+    end
+end
+
+--- @param name string
+--- @param drive string
+function plugin_manager.install_user_plugin(name, drive)
+    --- @type PluginManager.PluginSpec
+    local spec
+    if fn.isdirectory(drive) == 1 then
+        spec = {
+            name = name,
+            drive = drive,
+        }
+        local success, message = pcall(function() plugin_manager.load(spec) end)
+        if not success then
+            notify(message, log.levels.ERROR)
+        end
+    else
+        notify("Unknown user plugin drive: " .. drive, log.levels.WARN)
+    end
+    return function(callback)
+        callback(spec)
+    end
+end
+
+--- @param plugin string
+function plugin_manager.upgrade(plugin)
+    local spec = plugin_specs[plugin]
+    if not spec then
+        return notify("Unknown plugin: " .. plugin, log.levels.WARN)
+    end
+    if fn.isdirectory(spec.drive) == 1 then
+        local command = { "git", "pull", "--ff-only" }
+        if system then
+            system(command, { cwd = spec.drive, text = true }, function(obj)
+                if obj.code ~= 0 then
+                    local err_msg = (obj.stderr ~= "" and obj.stderr) or "Unknown error"
+                    return notify("git pull error: " .. obj.code .. "):\n" .. err_msg, log.levels.ERROR)
+                end
+            end)
+        else
+            local old_cwd = fn.getcwd()
+            local output
+            fn.chdir(spec.drive)
+            output = fn.system(table.concat(command))
+            fn.chdir(old_cwd)
+            ---@diagnostic disable-next-line
+            if vim.v.shell_error ~= 0 then
+                return notify("faild upgrade\n" .. output, log.levels.ERROR)
+            end
+        end
+    else
+        if not spec.origin then
+            return notify("Plugin " .. spec.name .. " not has origin" .. plugin, log.levels.WARN)
+        end
+        --- @diagnostic  disable-next-line
+        plugin_manager.install(spec.origin, spec)
+    end
+end
+
+return plugin_manager
+
