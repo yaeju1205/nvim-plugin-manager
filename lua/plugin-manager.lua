@@ -24,11 +24,13 @@ local plugin_specs = {}
 --- @field drive string
 --- @field version? string
 --- @field branch? string
+--- @field requires? { origin: string, options?: PluginManager.InstallOptions }[] 
 
 --- @class PluginManager.InstallOptions
 --- @field name? string
 --- @field version? string
 --- @field branch? string
+--- @field requires? { origin: string, options?: PluginManager.InstallOptions }[] 
 
 --- @param origin string
 --- @return string, string
@@ -81,6 +83,11 @@ end
 
 --- @param spec PluginManager.PluginSpec
 function plugin_manager.load(spec)
+    if spec.requires then
+        for _, include in ipairs(spec.requires) do
+            plugin_manager.install_sync(include.origin, include.origin)
+        end
+    end
     plugin_specs[spec.name] = spec
     opt.rtp:append(spec.drive)
 end
