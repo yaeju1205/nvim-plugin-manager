@@ -122,8 +122,32 @@ function plugin_manager.install(origin, options)
     end
 end
 
+--- @param origin string
+--- @param options? PluginManager.InstallOptions
+function plugin_manager.install_sync(origin, options)
+    local command, spec = get_git_origin_install_command_and_info(origin, options or {})
+    if fn.isdirectory(spec.drive) == 1 then
+        return plugin_manager.load(spec)
+    end
+    if system then
+        local obj = system(command, { text = true }):wait()
+        if obj.code ~= 0 then
+            local err_msg = (obj.stderr ~= "" and obj.stderr) or "Unknown error"
+            return notify("Install git clone error: " .. obj.code .. "):\n" .. err_msg, log.levels.ERROR)
+        end
+    else
+        local output = fn.system(table.concat(command))
+        ---@diagnostic disable-next-line
+        if vim.v.shell_error ~= 0 then
+            return notify("Faild install\n" .. output, log.levels.ERROR)
+        end
+    end
+    plugin_manager.load(spec)
+end
+
 --- @param name string
 --- @param drive string
+--- @return fun (callback: fun(spec: PluginManager.PluginSpec))
 function plugin_manager.install_user_plugin(name, drive)
     --- @type PluginManager.PluginSpec
     local spec
@@ -137,10 +161,24 @@ function plugin_manager.install_user_plugin(name, drive)
         notify("Unknown user plugin drive: " .. drive, log.levels.WARN)
     end
     return function(callback)
-        local success, message = pcall(callback)
-        if not success then
-            notify(message, log.levels.ERROR)
-        end
+        schedule(function()
+            callback(spec)
+        end)
+    end
+end
+
+--- @param name string
+--- @param drive string
+function plugin_manager.install_user_plugin_sync(name, drive)
+    local spec
+    if fn.isdirectory(drive) == 1 then
+        spec = {
+            name = name,
+            drive = drive,
+        }
+        plugin_manager.load(spec)
+    else
+        notify("Unknown user plugin drive: " .. drive, log.levels.WARN)
     end
 end
 
