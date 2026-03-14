@@ -14,6 +14,8 @@ local tbl_extend = vim.tbl_extend
 local plugin_manager = {}
 plugin_manager.plugins_directory = fn.expand(fn.stdpath("data") .. "/nvim-plugins")
 plugin_manager.username = env.USER or env.LOGNAME or env.USERNAME or "unknown"
+plugin_manager.git_host = "github.com"
+plugin_manager.git_prefix = "https://" .. plugin_manager.git_host .. "/"
 
 --- @type { [string]: PluginManager.PluginSpec }
 local plugin_specs = {}
@@ -33,8 +35,10 @@ local plugin_specs = {}
 --- @field requires? { origin: string, options?: PluginManager.InstallOptions }[] 
 
 --- @param origin string
---- @return string, string
+--- @return string, string, string
 local function get_git_origin_info(origin)
+    local host = origin:match("//([^/]+)") or origin:match("@([^:]+)") or plugin_manager.git_host
+
     origin = origin:gsub("^%w+://", ""):gsub("^git@", "")
     origin = origin:gsub(":", "/")
     origin = origin:gsub("%.git$", "")
@@ -46,21 +50,22 @@ local function get_git_origin_info(origin)
     local count = #slash_parts
     local owner = slash_parts[count - 1]
     local repo = slash_parts[count]
-    return owner, repo
+    return host, owner, repo
 end
 
+--- @param host string
 --- @param owner string
 --- @param name string
-local function get_origin_drive(owner, name)
-    return fn.expand(plugin_manager.plugins_directory .. "/" .. owner .. "/" .. name)
+local function get_origin_drive(host, owner, name)
+    return fn.expand(plugin_manager.plugins_directory .. "/" .. host .. "/" .. owner .. "/" .. name)
 end
 
 --- @param origin string
 --- @param options PluginManager.InstallOptions
 --- @return string[], PluginManager.PluginSpec
 local function get_git_origin_install_command_and_info(origin, options)
-    local owner, name = get_git_origin_info(origin)
-    local drive = get_origin_drive(owner, name)
+    local host, owner, name = get_git_origin_info(origin)
+    local drive = get_origin_drive(host, owner, name)
     local command = { "git", "clone", "--filter=blob:none", "--depth=1" }
     if options.version then
         command[5] = "--branch"
@@ -85,7 +90,7 @@ end
 function plugin_manager.load(spec)
     if spec.requires then
         for _, include in ipairs(spec.requires) do
-            plugin_manager.install_sync(include.origin, include.origin)
+            plugin_manager.install_sync(include.origin, include.options)
         end
     end
     plugin_specs[spec.name] = spec
