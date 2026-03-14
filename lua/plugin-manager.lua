@@ -217,5 +217,44 @@ function plugin_manager.upgrade(plugin)
     end
 end
 
+--- @param plugin string
+function plugin_manager.remove(plugin)
+    local spec = plugin_specs[plugin]
+    if not spec then
+        return notify("Unknown plugin: " .. plugin, log.levels.WARN)
+    end
+    if fn.isdirectory(spec.drive) == 1 then
+        opt.rtp:remove(spec.drive)
+    else
+        return notify("Plugin " .. spec.name .. " not found" .. plugin, log.levels.WARN)
+    end
+end
+
+--- @param plugin string
+function plugin_manager.delete(plugin)
+    local spec = plugin_specs[plugin]
+    if not spec then
+        return notify("Unknown plugin: " .. plugin, log.levels.WARN)
+    end
+    plugin_manager.remove(plugin)
+    if fn.has("win32") == 1 then
+        if system then
+            system({ "rmdir", "/s", "/q", spec.drive })
+        else
+            schedule(function()
+                fn.system(string.format('rmdir /s /q "%s"', spec.drive))
+            end)
+        end
+    else
+        if system then
+            system({ "rm", "-r", spec.drive })
+        else
+            schedule(function()
+                fn.system("rm -r" .. spec.drive)
+            end)
+        end
+    end
+end
+
 return plugin_manager
 
