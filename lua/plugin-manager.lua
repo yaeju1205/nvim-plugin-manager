@@ -92,8 +92,10 @@ function plugin_manager.install(origin, options)
     local command, spec = get_git_origin_install_command_and_info(origin, options or {})
     if fn.isdirectory(spec.drive) == 1 then
         return function(callback)
-            plugin_manager.load(spec)
-            callback(spec)
+            schedule(function()
+                plugin_manager.load(spec)
+                callback(spec)
+            end)
         end
     end
     return function(callback)
