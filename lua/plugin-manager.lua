@@ -37,7 +37,11 @@ local plugin_specs = {}
 --- @param origin string
 --- @return string, string, string
 local function get_git_origin_info(origin)
-    local host = origin:match("//([^/]+)") or origin:match("@([^:]+)") or plugin_manager.git_host
+    local host = origin:match("//([^/]+)") or origin:match("@([^:]+)")
+    if not host then
+        host = plugin_manager.git_host
+        origin = plugin_manager.git_prefix .. origin
+    end
 
     origin = origin:gsub("^%w+://", ""):gsub("^git@", "")
     origin = origin:gsub(":", "/")
