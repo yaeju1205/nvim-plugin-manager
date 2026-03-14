@@ -47,12 +47,18 @@ local function get_git_origin_info(origin)
     return owner, repo
 end
 
+--- @param owner string
+--- @param name string
+local function get_origin_drive(owner, name)
+    return fn.expand(plugin_manager.plugins_directory .. "/" .. owner .. "/" .. name)
+end
+
 --- @param origin string
 --- @param options PluginManager.InstallOptions
 --- @return string[], PluginManager.PluginSpec
 local function get_git_origin_install_command_and_info(origin, options)
     local owner, name = get_git_origin_info(origin)
-    local drive = fn.expand(plugin_manager.plugins_directory .. "/" .. owner .. "/" .. name)
+    local drive = get_origin_drive(owner, name)
     local command = { "git", "clone", "--filter=blob:none", "--depth=1" }
     if options.version then
         command[5] = "--branch"
@@ -84,6 +90,12 @@ end
 --- @return fun (callback: fun(spec: PluginManager.PluginSpec))
 function plugin_manager.install(origin, options)
     local command, spec = get_git_origin_install_command_and_info(origin, options or {})
+    if fn.isdirectory(spec.drive) == 1 then
+        return function(callback)
+            plugin_manager.load(spec)
+            callback(spec)
+        end
+    end
     return function(callback)
         if system then
             system(command, { text = true }, function(obj)
