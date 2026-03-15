@@ -17,7 +17,7 @@ plugin_manager.username = env.USER or env.LOGNAME or env.USERNAME or "unknown"
 plugin_manager.git_host = "github.com"
 plugin_manager.git_prefix = "https://" .. plugin_manager.git_host .. "/"
 
---- @type { [string]: PluginManager.PluginSpec }
+--- @type table<string, PluginManager.PluginSpec>
 local plugin_specs = {}
 
 --- @class PluginManager.PluginSpec
