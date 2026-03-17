@@ -116,14 +116,16 @@ end
 
 --- @param origin string
 --- @param options? PluginManager.InstallOptions
---- @return fun (callback: fun(spec: PluginManager.PluginSpec))
+--- @return fun (callback?: fun(spec: PluginManager.PluginSpec))
 function plugin_manager.install(origin, options)
     local command, spec = get_git_origin_install_command_and_info(origin, options or {})
     if fn.isdirectory(spec.drive) == 1 then
         return function(callback)
             schedule(function()
                 plugin_manager.load(spec)
-                callback(spec)
+                if callback then
+                    callback(spec)
+                end
             end)
         end
     end
@@ -136,7 +138,9 @@ function plugin_manager.install(origin, options)
                         return notify("Install git clone error: " .. obj.code .. "):\n" .. err_msg, log.levels.ERROR)
                     end
                     plugin_manager.load(spec)
-                    callback(spec)
+                    if callback then
+                        callback(spec)
+                    end
                 end)
             end)
         else
@@ -147,7 +151,9 @@ function plugin_manager.install(origin, options)
                     return notify("Faild install\n" .. output, log.levels.ERROR)
                 end
                 plugin_manager.load(spec)
-                callback(spec)
+                if callback then
+                    callback(spec)
+                end
             end)
         end
     end
@@ -178,7 +184,7 @@ end
 
 --- @param name string
 --- @param drive string
---- @return fun (callback: fun(spec: PluginManager.PluginSpec))
+--- @return fun (callback?: fun(spec: PluginManager.PluginSpec))
 function plugin_manager.install_user_plugin(name, drive)
     --- @type PluginManager.PluginSpec
     local spec
@@ -193,7 +199,9 @@ function plugin_manager.install_user_plugin(name, drive)
     end
     return function(callback)
         schedule(function()
-            callback(spec)
+            if callback then
+                callback(spec)
+            end
         end)
     end
 end
