@@ -94,6 +94,7 @@ local function get_git_origin_install_command_and_info(origin, options)
         command[8] = drive
     else
         command[5] = get_git_normal_origin(origin)
+        command[6] = drive
     end
     return command, tbl_extend("force", {
         name = name,
