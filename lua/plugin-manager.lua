@@ -82,6 +82,8 @@ local function get_git_origin_install_command_and_info(origin, options)
         command[6] = options.branch
         command[7] = origin
         command[8] = drive
+    else
+        command[5] = origin
     end
     return command, tbl_extend("force", {
         name = name,
@@ -117,16 +119,18 @@ function plugin_manager.install(origin, options)
     return function(callback)
         if system then
             system(command, { text = true }, function(obj)
-                if obj.code ~= 0 then
-                    local err_msg = (obj.stderr ~= "" and obj.stderr) or "Unknown error"
-                    return notify("Install git clone error: " .. obj.code .. "):\n" .. err_msg, log.levels.ERROR)
-                end
-                plugin_manager.load(spec)
-                callback(spec)
+                schedule(function()
+                    if obj.code ~= 0 then
+                        local err_msg = (obj.stderr ~= "" and obj.stderr) or "Unknown error"
+                        return notify("Install git clone error: " .. obj.code .. "):\n" .. err_msg, log.levels.ERROR)
+                    end
+                    plugin_manager.load(spec)
+                    callback(spec)
+                end)
             end)
         else
             schedule(function()
-                local output = fn.system(table.concat(command))
+                local output = fn.system(table.concat(command, " "))
                 ---@diagnostic disable-next-line
                 if vim.v.shell_error ~= 0 then
                     return notify("Faild install\n" .. output, log.levels.ERROR)
@@ -152,7 +156,7 @@ function plugin_manager.install_sync(origin, options)
             return notify("Install git clone error: " .. obj.code .. "):\n" .. err_msg, log.levels.ERROR)
         end
     else
-        local output = fn.system(table.concat(command))
+        local output = fn.system(table.concat(command, " "))
         ---@diagnostic disable-next-line
         if vim.v.shell_error ~= 0 then
             return notify("Faild install\n" .. output, log.levels.ERROR)
@@ -217,7 +221,7 @@ function plugin_manager.upgrade(plugin)
             local old_cwd = fn.getcwd()
             local output
             fn.chdir(spec.drive)
-            output = fn.system(table.concat(command))
+            output = fn.system(table.concat(command, " "))
             fn.chdir(old_cwd)
             ---@diagnostic disable-next-line
             if vim.v.shell_error ~= 0 then
