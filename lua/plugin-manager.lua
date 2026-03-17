@@ -35,6 +35,16 @@ local plugin_specs = {}
 --- @field requires? { origin: string, options?: PluginManager.InstallOptions }[] 
 
 --- @param origin string
+--- @return string
+local function get_git_normal_origin(origin)
+    local host = origin:match("//([^/]+)") or origin:match("@([^:]+)")
+    if not host then
+        origin = plugin_manager.git_prefix .. origin
+    end
+    return origin
+end
+
+--- @param origin string
 --- @return string, string, string
 local function get_git_origin_info(origin)
     local host = origin:match("//([^/]+)") or origin:match("@([^:]+)")
@@ -75,15 +85,15 @@ local function get_git_origin_install_command_and_info(origin, options)
         command[5] = "--branch"
         command[6] = options.version
         command[7] = "--single-branch"
-        command[8] = origin
+        command[8] = get_git_normal_origin(origin)
         command[9] = drive
     elseif options.branch then
         command[5] = "--branch"
         command[6] = options.branch
-        command[7] = origin
+        command[7] = get_git_normal_origin(origin)
         command[8] = drive
     else
-        command[5] = origin
+        command[5] = get_git_normal_origin(origin)
     end
     return command, tbl_extend("force", {
         name = name,
