@@ -11,9 +11,7 @@ Add `~/.config/nvim/lua/plugin-manager.lua` and put nvim-plugin-manager code
 ### api
 ```lua
 local plugin_manager = require("plugin-manager")
-plugin_manager.install
-("https://github.com/yaeju1205/warp.nvim")
-(function()
+plugin_manager.install("https://github.com/yaeju1205/warp.nvim")(function()
     local warp = require("warp")
     ...
 end)
