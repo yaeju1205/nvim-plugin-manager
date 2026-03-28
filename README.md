@@ -19,3 +19,11 @@ end)
 plugin_manager.upgrade("warp.nvim")
 ```
 
+or
+```lua
+vim.plugin.install("https://github.com/yaeju1205/warp.nvim")(function()
+    local warp = require("warp")
+    ...
+end)
+```
+
