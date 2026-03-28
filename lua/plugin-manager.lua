@@ -20,7 +20,7 @@ plugin_manager.git_prefix = "https://" .. plugin_manager.git_host .. "/"
 --- Added by nvim-plugin-manager for plugin infos
 --- can control to plugins info and namespaces
 --- @alias vim.plugins PluginManager
-vim.plugin = {}
+vim.plugins = {}
 
 --- @type table<string, PluginManager.PluginNamespace>
 local plugin_namespaces = {}
