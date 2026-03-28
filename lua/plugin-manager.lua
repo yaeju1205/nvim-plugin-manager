@@ -17,6 +17,17 @@ plugin_manager.username = env.USER or env.LOGNAME or env.USERNAME or "unknown"
 plugin_manager.git_host = "github.com"
 plugin_manager.git_prefix = "https://" .. plugin_manager.git_host .. "/"
 
+--- Added by nvim-plugin-manager for plugin infos
+--- can control to plugins info and namespaces
+--- @alias vim.plugins PluginManager
+vim.plugins = {}
+
+--- @type table<string, PluginManager.PluginNamespace>
+local plugin_namespaces = {}
+
+--- @class PluginManager.PluginNamespace
+--- @field enable boolean
+
 --- @type table<string, PluginManager.PluginSpec>
 local plugin_specs = {}
 
@@ -295,5 +306,36 @@ function plugin_manager.delete(plugin)
     end
 end
 
-return plugin_manager
+--- @param name string
+function plugin_manager.disable_namespace(name)
+    if plugin_namespaces[name] then
+        plugin_namespaces[name].enable = false
+    else
+        plugin_namespaces[name] = { enable = false }
+    end
+end
 
+--- @param name string
+function plugin_manager.enable_namespace(name)
+    if plugin_namespaces[name] then
+        plugin_namespaces[name].enable = true
+    else
+        plugin_namespaces[name] = { enable = true }
+    end
+end
+
+--- @param name string
+--- @param callback fun()
+function plugin_manager.namespace(name, callback)
+    if plugin_namespaces[name] then
+        if not plugin_namespaces[name].enable then
+            return
+        end
+    end
+    plugin_namespaces[name] = {
+        enable = true,
+    }
+    callback()
+end
+
+return plugin_manager
