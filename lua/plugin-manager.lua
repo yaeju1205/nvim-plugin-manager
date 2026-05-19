@@ -118,7 +118,7 @@ end
 function plugin_manager.load(spec)
     if spec.requires then
         for _, include in ipairs(spec.requires) do
-            local _, _, name = get_git_origin_install_command_and_info(include.origin, include.options)
+            local _, _, name = get_git_origin_install_command_and_info(include.origin, include.options or {})
             if not plugin_specs[name] then
                 plugin_manager.install_sync(include.origin, include.options)
             end
