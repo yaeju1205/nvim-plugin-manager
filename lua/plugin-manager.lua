@@ -118,11 +118,15 @@ end
 function plugin_manager.load(spec)
     if spec.requires then
         for _, include in ipairs(spec.requires) do
-            plugin_manager.install_sync(include.origin, include.options)
+            local _, _, name = get_git_origin_install_command_and_info(include.origin, include.options)
+            if not plugin_specs[name] then
+                plugin_manager.install_sync(include.origin, include.options)
+            end
         end
     end
     plugin_specs[spec.name] = spec
     opt.rtp:append(spec.drive)
+    vim.cmd("packadd " .. spec.name)
 end
 
 --- @param origin string
@@ -297,10 +301,10 @@ function plugin_manager.delete(plugin)
         end
     else
         if system then
-            system({ "rm", "-r", spec.drive })
+            system({ "rm", "-r ", spec.drive })
         else
             schedule(function()
-                fn.system("rm -r" .. spec.drive)
+                fn.system("rm -r " .. spec.drive)
             end)
         end
     end
