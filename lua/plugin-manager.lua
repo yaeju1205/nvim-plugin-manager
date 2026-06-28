@@ -115,6 +115,12 @@ local function get_git_origin_install_command_and_info(origin, options)
 end
 
 --- @param spec PluginManager.PluginSpec
+function plugin_manager.use(spec)
+    plugin_specs[spec.name] = spec
+    vim.cmd("packadd! " .. spec.name)
+end
+
+--- @param spec PluginManager.PluginSpec
 function plugin_manager.load(spec)
     if spec.requires then
         for _, include in ipairs(spec.requires) do
@@ -124,9 +130,9 @@ function plugin_manager.load(spec)
             end
         end
     end
-    plugin_specs[spec.name] = spec
-    opt.rtp:append(spec.drive)
-    vim.cmd("packadd " .. spec.name)
+
+    opt.rtp:prepend(spec.drive)
+    plugin_manager.use(spec)
 end
 
 --- @param origin string
