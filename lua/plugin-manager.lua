@@ -1,4 +1,5 @@
 --- @diagnostic disable
+local cmd = vim.cmd
 local fn = vim.fn
 local opt = vim.opt
 local env = vim.env
@@ -20,6 +21,7 @@ plugin_manager.git_prefix = "https://" .. plugin_manager.git_host .. "/"
 --- Added by nvim-plugin-manager for plugin infos
 --- can control to plugins info and namespaces
 --- @alias vim.plugins PluginManager
+--- @diagnostic disable-next-line
 vim.plugin = plugin_manager
 
 --- @type table<string, PluginManager.PluginNamespace>
@@ -117,7 +119,7 @@ end
 --- @param spec PluginManager.PluginSpec
 function plugin_manager.use(spec)
     plugin_specs[spec.name] = spec
-    vim.cmd("packadd! " .. spec.name)
+    cmd("packadd! " .. spec.name)
 end
 
 --- @param spec PluginManager.PluginSpec
@@ -150,32 +152,43 @@ function plugin_manager.install(origin, options)
             end)
         end
     end
-    return function(callback)
-        if system then
-            system(command, { text = true }, function(obj)
-                schedule(function()
-                    if obj.code ~= 0 then
-                        local err_msg = (obj.stderr ~= "" and obj.stderr) or "Unknown error"
-                        return notify("Install git clone error: " .. obj.code .. "):\n" .. err_msg, log.levels.ERROR)
-                    end
-                    plugin_manager.load(spec)
-                    if callback then
-                        callback(spec)
-                    end
-                end)
-            end)
-        else
+
+    local is_loaded = false
+    local callback
+    if system then
+        system(command, { text = true }, function(obj)
             schedule(function()
-                local output = fn.system(table.concat(command, " "))
-                ---@diagnostic disable-next-line
-                if vim.v.shell_error ~= 0 then
-                    return notify("Faild install\n" .. output, log.levels.ERROR)
+                if obj.code ~= 0 then
+                    local err_msg = (obj.stderr ~= "" and obj.stderr) or "Unknown error"
+                    return notify("Install git clone error: " .. obj.code .. "):\n" .. err_msg, log.levels.ERROR)
                 end
                 plugin_manager.load(spec)
                 if callback then
                     callback(spec)
                 end
+                is_loaded = true
             end)
+        end)
+    else
+        schedule(function()
+            local output = fn.system(table.concat(command, " "))
+            ---@diagnostic disable-next-line
+            if vim.v.shell_error ~= 0 then
+                return notify("Faild install\n" .. output, log.levels.ERROR)
+            end
+            plugin_manager.load(spec)
+            if callback then
+                callback(spec)
+            end
+            is_loaded = true
+        end)
+    end
+
+    return function(user_callback)
+        if is_loaded and user_callback then
+            user_callback(spec)
+        else
+            callback = user_callback
         end
     end
 end
