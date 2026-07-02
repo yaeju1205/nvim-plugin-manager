@@ -12,11 +12,14 @@ local tbl_extend = vim.tbl_extend
 
 --- @class PluginManager
 --- @field plugins_directory string
+--- @field username string
+--- @field remote_host string
+--- @field remote_suffix string
 local plugin_manager = {}
 plugin_manager.plugins_directory = fn.expand(fn.stdpath("data") .. "/nvim-plugins")
 plugin_manager.username = env.USER or env.LOGNAME or env.USERNAME or "unknown"
-plugin_manager.git_host = "github.com"
-plugin_manager.git_prefix = "https://" .. plugin_manager.git_host .. "/"
+plugin_manager.remote_host = "github.com"
+plugin_manager.remote_suffix = "https://" .. plugin_manager.remote_host .. "/"
 
 --- Added by nvim-plugin-manager for plugin infos
 --- can control to plugins info and namespaces
@@ -49,21 +52,21 @@ local plugin_specs = {}
 
 --- @param origin string
 --- @return string
-local function get_git_normal_origin(origin)
+local function get_remote_normal_origin(origin)
     local host = origin:match("//([^/]+)") or origin:match("@([^:]+)")
     if not host then
-        origin = plugin_manager.git_prefix .. origin
+        origin = plugin_manager.remote_suffix .. origin
     end
     return origin
 end
 
 --- @param origin string
 --- @return string, string, string
-local function get_git_origin_info(origin)
+local function get_remote_origin_info(origin)
     local host = origin:match("//([^/]+)") or origin:match("@([^:]+)")
     if not host then
-        host = plugin_manager.git_host
-        origin = plugin_manager.git_prefix .. origin
+        host = plugin_manager.remote_host
+        origin = plugin_manager.remote_suffix .. origin
     end
 
     origin = origin:gsub("^%w+://", ""):gsub("^git@", "")
@@ -90,25 +93,27 @@ end
 --- @param origin string
 --- @param options PluginManager.InstallOptions
 --- @return string[], PluginManager.PluginSpec
-local function get_git_origin_install_command_and_info(origin, options)
-    local host, owner, name = get_git_origin_info(origin)
+local function get_remote_origin_install_command_and_info(origin, options)
+    local host, owner, name = get_remote_origin_info(origin)
     local drive = get_origin_drive(host, owner, name)
     local command = { "git", "clone", "--filter=blob:none", "--depth=1" }
+
     if options.version then
         command[5] = "--branch"
         command[6] = options.version
         command[7] = "--single-branch"
-        command[8] = get_git_normal_origin(origin)
+        command[8] = get_remote_normal_origin(origin)
         command[9] = drive
     elseif options.branch then
         command[5] = "--branch"
         command[6] = options.branch
-        command[7] = get_git_normal_origin(origin)
+        command[7] = get_remote_normal_origin(origin)
         command[8] = drive
     else
-        command[5] = get_git_normal_origin(origin)
+        command[5] = get_remote_normal_origin(origin)
         command[6] = drive
     end
+
     return command, tbl_extend("force", {
         name = name,
         drive = drive,
@@ -126,7 +131,7 @@ end
 function plugin_manager.load(spec)
     if spec.requires then
         for _, include in ipairs(spec.requires) do
-            local _, _, name = get_git_origin_install_command_and_info(include.origin, include.options or {})
+            local _, _, name = get_remote_origin_install_command_and_info(include.origin, include.options or {})
             if not plugin_specs[name] then
                 plugin_manager.install_sync(include.origin, include.options)
             end
@@ -141,7 +146,7 @@ end
 --- @param options? PluginManager.InstallOptions
 --- @return fun (callback?: fun(spec: PluginManager.PluginSpec))
 function plugin_manager.install(origin, options)
-    local command, spec = get_git_origin_install_command_and_info(origin, options or {})
+    local command, spec = get_remote_origin_install_command_and_info(origin, options or {})
     if fn.isdirectory(spec.drive) == 1 then
         return function(callback)
             schedule(function()
@@ -160,7 +165,7 @@ function plugin_manager.install(origin, options)
             schedule(function()
                 if obj.code ~= 0 then
                     local err_msg = (obj.stderr ~= "" and obj.stderr) or "Unknown error"
-                    return notify("Install git clone error: " .. obj.code .. "):\n" .. err_msg, log.levels.ERROR)
+                    return notify("git clone error: " .. obj.code .. "):\n" .. err_msg, log.levels.ERROR)
                 end
                 plugin_manager.load(spec)
                 if callback then
@@ -196,7 +201,7 @@ end
 --- @param origin string
 --- @param options? PluginManager.InstallOptions
 function plugin_manager.install_sync(origin, options)
-    local command, spec = get_git_origin_install_command_and_info(origin, options or {})
+    local command, spec = get_remote_origin_install_command_and_info(origin, options or {})
     if fn.isdirectory(spec.drive) == 1 then
         return plugin_manager.load(spec)
     end
@@ -204,7 +209,7 @@ function plugin_manager.install_sync(origin, options)
         local obj = system(command, { text = true }):wait()
         if obj.code ~= 0 then
             local err_msg = (obj.stderr ~= "" and obj.stderr) or "Unknown error"
-            return notify("Install git clone error: " .. obj.code .. "):\n" .. err_msg, log.levels.ERROR)
+            return notify("git clone error: " .. obj.code .. "):\n" .. err_msg, log.levels.ERROR)
         end
     else
         local output = fn.system(table.concat(command, " "))
@@ -267,7 +272,7 @@ function plugin_manager.upgrade(plugin)
             system(command, { cwd = spec.drive, text = true }, function(obj)
                 if obj.code ~= 0 then
                     local err_msg = (obj.stderr ~= "" and obj.stderr) or "Unknown error"
-                    return notify("Upgrade git pull error: " .. obj.code .. "):\n" .. err_msg, log.levels.ERROR)
+                    return notify("git pull error: " .. obj.code .. "):\n" .. err_msg, log.levels.ERROR)
                 end
             end)
         else
