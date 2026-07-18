@@ -125,6 +125,7 @@ end
 function plugin_manager.use(spec)
     plugin_specs[spec.name] = spec
     cmd("packadd! " .. spec.name)
+    opt.rtp:prepend(spec.drive)
 end
 
 --- @param spec PluginManager.PluginSpec
@@ -138,7 +139,6 @@ function plugin_manager.load(spec)
         end
     end
 
-    opt.rtp:prepend(spec.drive)
     plugin_manager.use(spec)
 end
 
