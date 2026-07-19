@@ -124,7 +124,6 @@ end
 --- @param spec PluginManager.PluginSpec
 function plugin_manager.use(spec)
     plugin_specs[spec.name] = spec
-    cmd("packadd! " .. spec.name)
     opt.rtp:prepend(spec.drive)
 end
 
@@ -203,8 +202,10 @@ end
 function plugin_manager.install_sync(origin, options)
     local command, spec = get_remote_origin_install_command_and_info(origin, options or {})
     if fn.isdirectory(spec.drive) == 1 then
-        return plugin_manager.load(spec)
+        plugin_manager.load(spec)
+        return
     end
+
     if system then
         local obj = system(command, { text = true }):wait()
         if obj.code ~= 0 then
@@ -218,6 +219,7 @@ function plugin_manager.install_sync(origin, options)
             return notify("Faild install\n" .. output, log.levels.ERROR)
         end
     end
+
     plugin_manager.load(spec)
 end
 
