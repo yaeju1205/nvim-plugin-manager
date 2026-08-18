@@ -151,7 +151,13 @@ function plugin_manager.install(origin, options)
             schedule(function()
                 plugin_manager.load(spec)
                 if callback then
-                    callback(spec)
+                    local success, msg = pcall(function()
+                        callback(spec)
+                    end)
+
+                    if not success then
+                        notify(msg, log.levels.ERROR)
+                    end
                 end
             end)
         end
